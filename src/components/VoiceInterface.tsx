@@ -19,8 +19,8 @@ export default function VoiceInterface({ onTranscription }: VoiceInterfaceProps)
   useEffect(() => {
     // Check for speech recognition support
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognition = new SpeechRecognition() as SpeechRecognition;
       
       recognition.continuous = false;
       recognition.interimResults = false;

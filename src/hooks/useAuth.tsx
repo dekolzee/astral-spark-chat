@@ -67,13 +67,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         id: `temp_${Date.now()}`,
         email: `${username}@temp.com`,
         user_metadata: { username },
+        app_metadata: {},
         aud: 'authenticated',
         created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        email_confirmed_at: new Date().toISOString(),
+        last_sign_in_at: new Date().toISOString(),
+        role: 'authenticated',
+        confirmation_sent_at: new Date().toISOString(),
       };
 
       localStorage.setItem('temp_user', JSON.stringify(tempUser));
-      setUser(tempUser as User);
-      setSession({ user: tempUser } as Session);
+      setUser(tempUser as unknown as User);
+      setSession({ 
+        user: tempUser,
+        access_token: 'temp_token',
+        refresh_token: 'temp_refresh',
+        expires_in: 3600,
+        token_type: 'bearer',
+        expires_at: Date.now() + 3600000
+      } as unknown as Session);
 
       toast({
         title: "Welcome to Dekolzee Bot!",
