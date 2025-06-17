@@ -12,21 +12,21 @@ interface VoiceInterfaceProps {
 export default function VoiceInterface({ onTranscription }: VoiceInterfaceProps) {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
+  const [recognition, setRecognition] = useState<ISpeechRecognition | null>(null);
   const { toast } = useToast();
   const { sendMessage } = useChat();
 
   useEffect(() => {
     // Check for speech recognition support
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      const recognition = new SpeechRecognition() as SpeechRecognition;
+      const SpeechRecognitionConstructor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognitionInstance = new SpeechRecognitionConstructor() as ISpeechRecognition;
       
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = 'en-US';
+      recognitionInstance.continuous = false;
+      recognitionInstance.interimResults = false;
+      recognitionInstance.lang = 'en-US';
 
-      recognition.onstart = () => {
+      recognitionInstance.onstart = () => {
         setIsListening(true);
         toast({
           title: "Listening...",
@@ -34,7 +34,7 @@ export default function VoiceInterface({ onTranscription }: VoiceInterfaceProps)
         });
       };
 
-      recognition.onresult = (event) => {
+      recognitionInstance.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
         onTranscription(transcript);
         sendMessage(transcript);
@@ -45,7 +45,7 @@ export default function VoiceInterface({ onTranscription }: VoiceInterfaceProps)
         }, 500);
       };
 
-      recognition.onerror = (event) => {
+      recognitionInstance.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
         toast({
           title: "Voice Recognition Error",
@@ -55,11 +55,11 @@ export default function VoiceInterface({ onTranscription }: VoiceInterfaceProps)
         setIsListening(false);
       };
 
-      recognition.onend = () => {
+      recognitionInstance.onend = () => {
         setIsListening(false);
       };
 
-      setRecognition(recognition);
+      setRecognition(recognitionInstance);
     } else {
       toast({
         title: "Voice not supported",
