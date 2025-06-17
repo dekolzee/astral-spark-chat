@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -70,14 +69,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
           if (messagesError) throw messagesError;
 
-          const messages: Message[] = (messagesData || []).map(msg => ({
-            id: msg.id,
-            content: msg.content,
-            role: msg.role as 'user' | 'assistant' | 'system',
-            source: msg.source as 'realtime' | 'gemini',
-            attachments: msg.attachments || [],
-            timestamp: new Date(msg.created_at),
-          }));
+          const messages: Message[] = (messagesData || []).map(msg => {
+            // Safely parse attachments from Json to expected array format
+            let attachments: Array<{ id: string; name: string; type: string; url: string; size: number }> = [];
+            if (msg.attachments && Array.isArray(msg.attachments)) {
+              attachments = msg.attachments as Array<{ id: string; name: string; type: string; url: string; size: number }>;
+            }
+
+            return {
+              id: msg.id,
+              content: msg.content,
+              role: msg.role as 'user' | 'assistant' | 'system',
+              source: msg.source as 'realtime' | 'gemini' | undefined,
+              attachments,
+              timestamp: new Date(msg.created_at),
+            };
+          });
 
           return {
             id: session.id,
