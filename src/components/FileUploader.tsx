@@ -135,7 +135,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
   return (
     <div className="space-y-4">
       {/* Drop Zone */}
-      <motion.div
+      <div
         {...getRootProps()}
         className={`
           relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all
@@ -143,8 +143,6 @@ const FileUploader: React.FC<FileUploaderProps> = ({
           ${isDragReject ? 'border-destructive bg-destructive/10' : ''}
           ${!isDragActive ? 'border-border hover:border-primary/50 hover:bg-primary/5' : ''}
         `}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
       >
         <input {...getInputProps()} />
         
@@ -154,6 +152,8 @@ const FileUploader: React.FC<FileUploaderProps> = ({
             scale: isDragActive ? 1.05 : 1,
             opacity: isDragActive ? 0.8 : 1 
           }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
         >
           <div className="mx-auto w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
             <Upload className="w-8 h-8 text-primary" />
@@ -171,7 +171,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
             </p>
           </div>
         </motion.div>
-      </motion.div>
+      </div>
 
       {/* Upload List */}
       <AnimatePresence>
