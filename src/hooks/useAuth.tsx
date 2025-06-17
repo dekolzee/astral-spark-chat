@@ -12,6 +12,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
+  tempSignIn: (username: string, password: string) => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,7 +24,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Set up auth state listener
+    // Check for temporary session first
+    const tempUser = localStorage.getItem('temp_user');
+    if (tempUser) {
+      const userData = JSON.parse(tempUser);
+      setUser(userData);
+      setSession({ user: userData } as Session);
+      setLoading(false);
+      return;
+    }
+
+    // Set up auth state listener for real Supabase auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
@@ -48,6 +59,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, [toast]);
+
+  const tempSignIn = async (username: string, password: string) => {
+    // Create a temporary user for demo purposes
+    if (username.length >= 3 && password.length >= 6) {
+      const tempUser = {
+        id: `temp_${Date.now()}`,
+        email: `${username}@temp.com`,
+        user_metadata: { username },
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+      };
+
+      localStorage.setItem('temp_user', JSON.stringify(tempUser));
+      setUser(tempUser as User);
+      setSession({ user: tempUser } as Session);
+
+      toast({
+        title: "Welcome to Dekolzee Bot!",
+        description: `Signed in temporarily as ${username}`,
+      });
+
+      return { error: null };
+    } else {
+      const error = { message: 'Username must be at least 3 characters and password at least 6 characters' };
+      toast({
+        title: "Temporary Sign In Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      return { error };
+    }
+  };
 
   const signUp = async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/`;
@@ -94,8 +137,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Clear temporary session
+    localStorage.removeItem('temp_user');
+    
     const { error } = await supabase.auth.signOut();
     if (!error) {
+      setUser(null);
+      setSession(null);
       toast({
         title: "Signed out",
         description: "You have been signed out successfully.",
@@ -133,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signOut,
       resetPassword,
+      tempSignIn,
     }}>
       {children}
     </AuthContext.Provider>

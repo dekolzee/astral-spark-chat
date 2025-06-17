@@ -1,5 +1,5 @@
+
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -41,98 +41,32 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Load sessions from database
+  // Create initial session for temp users
   useEffect(() => {
-    if (user) {
-      loadSessions();
+    if (user && sessions.length === 0) {
+      createSession('Welcome Chat');
     }
   }, [user]);
-
-  const loadSessions = async () => {
-    if (!user) return;
-
-    try {
-      const { data: sessionsData, error: sessionsError } = await supabase
-        .from('chat_sessions')
-        .select('*')
-        .order('updated_at', { ascending: false });
-
-      if (sessionsError) throw sessionsError;
-
-      const sessionsWithMessages = await Promise.all(
-        (sessionsData || []).map(async (session) => {
-          const { data: messagesData, error: messagesError } = await supabase
-            .from('messages')
-            .select('*')
-            .eq('session_id', session.id)
-            .order('created_at', { ascending: true });
-
-          if (messagesError) throw messagesError;
-
-          const messages: Message[] = (messagesData || []).map(msg => {
-            // Safely parse attachments from Json to expected array format
-            let attachments: Array<{ id: string; name: string; type: string; url: string; size: number }> = [];
-            if (msg.attachments && Array.isArray(msg.attachments)) {
-              attachments = msg.attachments as Array<{ id: string; name: string; type: string; url: string; size: number }>;
-            }
-
-            return {
-              id: msg.id,
-              content: msg.content,
-              role: msg.role as 'user' | 'assistant' | 'system',
-              source: msg.source as 'realtime' | 'gemini' | undefined,
-              attachments,
-              timestamp: new Date(msg.created_at),
-            };
-          });
-
-          return {
-            id: session.id,
-            title: session.title,
-            messages,
-            createdAt: new Date(session.created_at),
-            updatedAt: new Date(session.updated_at),
-          };
-        })
-      );
-
-      setSessions(sessionsWithMessages);
-      
-      if (sessionsWithMessages.length > 0 && !activeSessionId) {
-        setActiveSessionId(sessionsWithMessages[0].id);
-      }
-    } catch (error) {
-      console.error('Error loading sessions:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load chat sessions",
-        variant: "destructive",
-      });
-    }
-  };
 
   const createSession = async (title = 'New Chat') => {
     if (!user) return;
 
     try {
-      const { data: sessionData, error } = await supabase
-        .from('chat_sessions')
-        .insert([{ user_id: user.id, title }])
-        .select()
-        .single();
-
-      if (error) throw error;
-
       const newSession: ChatSession = {
-        id: sessionData.id,
-        title: sessionData.title,
+        id: crypto.randomUUID(),
+        title,
         messages: [],
-        createdAt: new Date(sessionData.created_at),
-        updatedAt: new Date(sessionData.updated_at),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
 
       setSessions(prev => [newSession, ...prev]);
       setActiveSessionId(newSession.id);
+      
+      toast({
+        title: "New chat created",
+        description: `Started "${title}"`,
+      });
     } catch (error) {
       console.error('Error creating session:', error);
       toast({
@@ -162,14 +96,6 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         timestamp: new Date(),
       };
 
-      // Save user message to database
-      await supabase.from('messages').insert([{
-        session_id: activeSessionId,
-        content,
-        role: 'user',
-        attachments: attachments || [],
-      }]);
-
       // Update local state
       setSessions(prev => prev.map(session =>
         session.id === activeSessionId
@@ -177,27 +103,28 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           : session
       ));
 
-      // Simulate AI response (replace with actual AI integration)
+      // Enhanced AI response with more personality
+      const responses = [
+        `Hello! I'm Dekolzee Bot, your AI assistant. You said: "${content}". I'm here to help you with any questions or tasks you might have. How can I assist you further?`,
+        `Thank you for reaching out! "${content}" is an interesting topic. As your AI companion, I'm ready to dive deeper into this conversation. What specific aspect would you like to explore?`,
+        `I appreciate your message: "${content}". I'm Dekolzee Bot, designed to be your intelligent conversational partner. Whether you need information, creative help, or just want to chat, I'm here for you!`,
+        `Great to hear from you! Regarding "${content}" - I'm equipped with knowledge and ready to help. As your AI assistant, I can provide information, answer questions, or engage in creative discussions. What would you like to know more about?`,
+        `Hi there! You mentioned "${content}" and I'm excited to help. I'm Dekolzee Bot, your AI-powered assistant designed to make conversations engaging and informative. How can I make your day better?`
+      ];
+      
+      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+      
+      // Simulate typing delay
       setTimeout(async () => {
-        const aiResponse = `I understand you said: "${content}". This is a simulated response from Dekolzee Bot. In a production version, this would connect to real AI services like OpenAI's Realtime API or Google Gemini.`;
-        
         const assistantMessage: Message = {
           id: crypto.randomUUID(),
-          content: aiResponse,
+          content: randomResponse,
           role: 'assistant',
           source: 'realtime',
           timestamp: new Date(),
         };
 
-        // Save AI message to database
-        await supabase.from('messages').insert([{
-          session_id: activeSessionId,
-          content: aiResponse,
-          role: 'assistant',
-          source: 'realtime',
-        }]);
-
-        // Update local state
+        // Update local state with AI response
         setSessions(prev => prev.map(session =>
           session.id === activeSessionId
             ? { ...session, messages: [...session.messages, assistantMessage] }
@@ -205,7 +132,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         ));
 
         setIsLoading(false);
-      }, 1000);
+      }, 1000 + Math.random() * 1000); // Random delay between 1-2 seconds
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
@@ -219,19 +146,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const deleteSession = async (sessionId: string) => {
     try {
-      const { error } = await supabase
-        .from('chat_sessions')
-        .delete()
-        .eq('id', sessionId);
-
-      if (error) throw error;
-
       setSessions(prev => prev.filter(session => session.id !== sessionId));
       
       if (activeSessionId === sessionId) {
         const remainingSessions = sessions.filter(s => s.id !== sessionId);
         setActiveSessionId(remainingSessions.length > 0 ? remainingSessions[0].id : null);
       }
+      
+      toast({
+        title: "Chat deleted",
+        description: "Chat session has been removed",
+      });
     } catch (error) {
       console.error('Error deleting session:', error);
       toast({
