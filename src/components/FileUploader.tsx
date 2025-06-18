@@ -7,9 +7,11 @@ import { useToast } from '@/hooks/use-toast';
 
 interface FileUploaderProps {
   onFilesUploaded: (files: Array<{ id: string; name: string; type: string; url: string; size: number }>) => void;
+  maxFiles?: number;
+  maxSize?: number;
 }
 
-export default function FileUploader({ onFilesUploaded }: FileUploaderProps) {
+export default function FileUploader({ onFilesUploaded, maxFiles = 5, maxSize = 10 * 1024 * 1024 }: FileUploaderProps) {
   const { toast } = useToast();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -36,7 +38,8 @@ export default function FileUploader({ onFilesUploaded }: FileUploaderProps) {
       'text/*': ['.txt', '.md'],
       'application/pdf': ['.pdf'],
     },
-    maxSize: 10 * 1024 * 1024, // 10MB
+    maxSize,
+    maxFiles,
     multiple: true,
   });
 
