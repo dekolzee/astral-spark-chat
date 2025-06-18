@@ -9,10 +9,22 @@ interface VoiceInterfaceProps {
   onTranscription: (text: string) => void;
 }
 
+interface SpeechRecognitionInterface extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  onstart: ((ev: Event) => any) | null;
+  onresult: ((ev: any) => any) | null;
+  onerror: ((ev: any) => any) | null;
+  onend: ((ev: Event) => any) | null;
+}
+
 export default function VoiceInterface({ onTranscription }: VoiceInterfaceProps) {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [recognition, setRecognition] = useState<ISpeechRecognition | null>(null);
+  const [recognition, setRecognition] = useState<SpeechRecognitionInterface | null>(null);
   const { toast } = useToast();
   const { sendMessage } = useChat();
 
@@ -20,7 +32,7 @@ export default function VoiceInterface({ onTranscription }: VoiceInterfaceProps)
     // Check for speech recognition support
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognitionConstructor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      const recognitionInstance = new SpeechRecognitionConstructor() as ISpeechRecognition;
+      const recognitionInstance = new SpeechRecognitionConstructor() as SpeechRecognitionInterface;
       
       recognitionInstance.continuous = false;
       recognitionInstance.interimResults = false;
