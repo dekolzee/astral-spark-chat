@@ -1,20 +1,26 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Plus, Trash2, LogOut, User, Bot, Paperclip, X } from 'lucide-react';
+import { Send, Plus, Trash2, LogOut, User, Bot, Paperclip, X, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { useChat } from '@/hooks/useChat';
 import { useAuth } from '@/hooks/useAuth';
+import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import FileUploader from '@/components/FileUploader';
 import VoiceInterface from '@/components/VoiceInterface';
 
 export default function DekolzeeChatWindow() {
   const [message, setMessage] = useState('');
   const [files, setFiles] = useState<Array<{ id: string; name: string; type: string; url: string; size: number }>>([]);
+  const [autoSpeak, setAutoSpeak] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { stop: stopSpeaking, isSpeaking } = useTextToSpeech();
+  
   const {
     sessions,
     activeSessionId,
@@ -28,6 +34,9 @@ export default function DekolzeeChatWindow() {
   const { user, signOut } = useAuth();
 
   const activeSession = getActiveSession();
+  const lastAIMessage = activeSession?.messages
+    .filter(msg => msg.role === 'assistant')
+    .slice(-1)[0]?.content || '';
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -87,7 +96,7 @@ export default function DekolzeeChatWindow() {
                 <span className="text-white font-bold text-sm">DB</span>
               </div>
               <div>
-                <h2 className="text-gray-900 dark:text-white font-medium text-sm">Dekolzee Bot</h2>
+                <h2 className="text-gray-900 dark:text-white font-medium text-sm">Dekolzee Chat</h2>
                 <p className="text-gray-500 text-xs truncate">
                   {user?.email || user?.user_metadata?.username || 'Guest'}
                 </p>
@@ -102,6 +111,31 @@ export default function DekolzeeChatWindow() {
               <LogOut className="w-4 h-4" />
             </Button>
           </div>
+          
+          {/* Auto-speak toggle */}
+          <div className="flex items-center justify-between mb-2">
+            <Label htmlFor="auto-speak" className="text-xs text-gray-600 dark:text-gray-400">
+              Auto-speak responses
+            </Label>
+            <div className="flex items-center gap-2">
+              {isSpeaking && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={stopSpeaking}
+                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                >
+                  <VolumeX className="w-3 h-3" />
+                </Button>
+              )}
+              <Switch
+                id="auto-speak"
+                checked={autoSpeak}
+                onCheckedChange={setAutoSpeak}
+              />
+            </div>
+          </div>
+          
           <Button
             onClick={() => createSession()}
             className="w-full bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 text-white text-sm h-8"
@@ -213,7 +247,7 @@ export default function DekolzeeChatWindow() {
                       
                       <div className="flex justify-between items-center mt-1">
                         <span className="text-xs opacity-70">
-                          {msg.role === 'user' ? 'You' : 'Dekolzee Bot'}
+                          {msg.role === 'user' ? 'You' : 'Dekolzee Chat'}
                         </span>
                         <span className="text-xs opacity-50">
                           {formatTime(msg.timestamp)}
@@ -300,7 +334,11 @@ export default function DekolzeeChatWindow() {
 
                 <div className="flex gap-1">
                   <FileUploader onFilesUploaded={setFiles} />
-                  <VoiceInterface onTranscription={handleVoiceTranscription} />
+                  <VoiceInterface 
+                    onTranscription={handleVoiceTranscription}
+                    autoSpeak={autoSpeak}
+                    lastMessage={lastAIMessage}
+                  />
                   <Button
                     onClick={handleSendMessage}
                     disabled={isLoading || (!message.trim() && files.length === 0)}
@@ -321,11 +359,11 @@ export default function DekolzeeChatWindow() {
               className="text-center max-w-md"
             >
               <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <span className="text-2xl font-bold text-white">DB</span>
+                <span className="text-2xl font-bold text-white">DC</span>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Welcome to Dekolzee Bot</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Welcome to Dekolzee Chat</h2>
               <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Your AI assistant powered by Google Gemini. Ask questions, upload images, or just have a conversation!
+                Your AI assistant powered by Google Gemini. Ask questions, upload images, use voice commands, or just have a conversation!
               </p>
               <Button
                 onClick={() => createSession('Welcome Chat')}
