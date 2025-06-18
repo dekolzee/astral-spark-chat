@@ -291,7 +291,7 @@ export default function DekolzeeChatWindow() {
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder="Message Dekolzee Bot... (Try asking about images or general questions!)"
+                    placeholder="Ask me anything..."
                     className="min-h-[44px] max-h-[120px] resize-none bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 rounded-xl pr-12"
                     disabled={isLoading}
                     rows={1}

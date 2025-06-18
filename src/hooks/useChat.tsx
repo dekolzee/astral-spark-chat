@@ -1,6 +1,8 @@
+
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Message {
   id: string;
@@ -130,24 +132,18 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Call Gemini API
-      const response = await fetch('/api/chat-with-gemini', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      // Call Gemini API using Supabase edge function
+      const { data, error } = await supabase.functions.invoke('chat-with-gemini', {
+        body: {
           message: content,
           images: images.length > 0 ? images : undefined
-        }),
+        }
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (error) {
+        throw new Error(error.message);
       }
 
-      const data = await response.json();
-      
       if (data.error) {
         throw new Error(data.error);
       }
