@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -103,41 +102,77 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           : session
       ));
 
-      // Enhanced AI response with more personality
-      const responses = [
-        `Hello! I'm Dekolzee Bot, your AI assistant. You said: "${content}". I'm here to help you with any questions or tasks you might have. How can I assist you further?`,
-        `Thank you for reaching out! "${content}" is an interesting topic. As your AI companion, I'm ready to dive deeper into this conversation. What specific aspect would you like to explore?`,
-        `I appreciate your message: "${content}". I'm Dekolzee Bot, designed to be your intelligent conversational partner. Whether you need information, creative help, or just want to chat, I'm here for you!`,
-        `Great to hear from you! Regarding "${content}" - I'm equipped with knowledge and ready to help. As your AI assistant, I can provide information, answer questions, or engage in creative discussions. What would you like to know more about?`,
-        `Hi there! You mentioned "${content}" and I'm excited to help. I'm Dekolzee Bot, your AI-powered assistant designed to make conversations engaging and informative. How can I make your day better?`
-      ];
-      
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      
-      // Simulate typing delay
-      setTimeout(async () => {
-        const assistantMessage: Message = {
-          id: crypto.randomUUID(),
-          content: randomResponse,
-          role: 'assistant',
-          source: 'realtime',
-          timestamp: new Date(),
-        };
+      // Prepare images for Gemini API
+      const images = [];
+      if (attachments) {
+        for (const attachment of attachments) {
+          if (attachment.type.startsWith('image/')) {
+            try {
+              const response = await fetch(attachment.url);
+              const blob = await response.blob();
+              const base64 = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  const result = reader.result as string;
+                  resolve(result.split(',')[1]); // Remove data URL prefix
+                };
+                reader.readAsDataURL(blob);
+              });
+              
+              images.push({
+                data: base64,
+                mimeType: attachment.type
+              });
+            } catch (error) {
+              console.error('Error processing image:', error);
+            }
+          }
+        }
+      }
 
-        // Update local state with AI response
-        setSessions(prev => prev.map(session =>
-          session.id === activeSessionId
-            ? { ...session, messages: [...session.messages, assistantMessage] }
-            : session
-        ));
+      // Call Gemini API
+      const response = await fetch('/api/chat-with-gemini', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: content,
+          images: images.length > 0 ? images : undefined
+        }),
+      });
 
-        setIsLoading(false);
-      }, 1000 + Math.random() * 1000); // Random delay between 1-2 seconds
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      const assistantMessage: Message = {
+        id: crypto.randomUUID(),
+        content: data.response,
+        role: 'assistant',
+        source: 'gemini',
+        timestamp: new Date(),
+      };
+
+      // Update local state with AI response
+      setSessions(prev => prev.map(session =>
+        session.id === activeSessionId
+          ? { ...session, messages: [...session.messages, assistantMessage] }
+          : session
+      ));
+
+      setIsLoading(false);
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
         title: "Error",
-        description: "Failed to send message",
+        description: "Failed to get response from AI. Please try again.",
         variant: "destructive",
       });
       setIsLoading(false);

@@ -125,33 +125,33 @@ export default function VoiceInterface({ onTranscription }: VoiceInterfaceProps)
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1">
       <Button
-        variant={isListening ? "destructive" : "default"}
+        variant="ghost"
         size="sm"
         onClick={isListening ? stopListening : startListening}
-        className={`${
+        className={`h-11 w-11 p-0 rounded-xl ${
           isListening 
-            ? 'bg-red-600 hover:bg-red-700 animate-pulse' 
-            : 'bg-purple-600 hover:bg-purple-700'
-        } text-white`}
+            ? 'text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 animate-pulse' 
+            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+        }`}
+        title={isListening ? 'Stop listening' : 'Start voice input'}
       >
-        {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-        {isListening ? 'Stop' : 'Voice'}
+        {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
       </Button>
 
       <Button
-        variant={isSpeaking ? "destructive" : "secondary"}
+        variant="ghost"
         size="sm"
         onClick={isSpeaking ? stopSpeaking : () => speakText("Hello! I'm Dekolzee Bot, ready to assist you!")}
-        className={`${
+        className={`h-11 w-11 p-0 rounded-xl ${
           isSpeaking 
-            ? 'bg-red-600 hover:bg-red-700 animate-pulse' 
-            : 'bg-teal-600 hover:bg-teal-700'
-        } text-white`}
+            ? 'text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 animate-pulse' 
+            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+        }`}
+        title={isSpeaking ? 'Stop speaking' : 'Test voice output'}
       >
-        {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-        {isSpeaking ? 'Stop' : 'Speak'}
+        {isSpeaking ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
       </Button>
     </div>
   );
