@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,6 +12,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
   tempSignIn: (username: string, password: string) => Promise<{ error: any }>;
+  updateProfile: (updates: { avatar_url?: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -185,6 +185,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
+  const updateProfile = async (updates: { avatar_url?: string }) => {
+    if (!user) return;
+    
+    // For temporary users, update localStorage
+    if (user.id.startsWith('temp_')) {
+      const tempUser = JSON.parse(localStorage.getItem('temp_user') || '{}');
+      tempUser.user_metadata = { ...tempUser.user_metadata, ...updates };
+      localStorage.setItem('temp_user', JSON.stringify(tempUser));
+      setUser({ ...user, user_metadata: { ...user.user_metadata, ...updates } } as User);
+      return;
+    }
+    
+    // For real users, update via Supabase
+    const { error } = await supabase.auth.updateUser({
+      data: updates
+    });
+    
+    if (error) {
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -195,6 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       resetPassword,
       tempSignIn,
+      updateProfile,
     }}>
       {children}
     </AuthContext.Provider>

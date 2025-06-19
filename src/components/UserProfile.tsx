@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
-import { User, Camera, Upload } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Camera } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
