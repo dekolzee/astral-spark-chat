@@ -12,6 +12,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import FileUploader from '@/components/FileUploader';
 import VoiceInterface from '@/components/VoiceInterface';
+import UserProfile from '@/components/UserProfile';
+import MessageReactions from '@/components/MessageReactions';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 
 export default function DekolzeeChatWindow() {
   const [message, setMessage] = useState('');
@@ -84,37 +87,60 @@ export default function DekolzeeChatWindow() {
     setFiles(files.filter(f => f.id !== fileId));
   };
 
+  const exportSession = () => {
+    if (!activeSession) return;
+    
+    const sessionData = {
+      title: activeSession.title,
+      messages: activeSession.messages,
+      exportedAt: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(sessionData, null, 2)], { 
+      type: 'application/json' 
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${activeSession.title.replace(/[^a-z0-9]/gi, '_')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
-    <div className="h-screen bg-white dark:bg-gray-900 flex">
-      {/* Compact Sidebar */}
-      <div className="w-64 bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+    <div className="h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 flex">
+      {/* Sidebar with Glass Effect */}
+      <div className="w-64 glass border-r border-white/10 flex flex-col backdrop-blur-xl">
         {/* Header */}
-        <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-teal-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">DB</span>
+        <div className="p-4 border-b border-white/10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-white font-bold">DB</span>
               </div>
               <div>
-                <h2 className="text-gray-900 dark:text-white font-medium text-sm">Dekolzee Chat</h2>
-                <p className="text-gray-500 text-xs truncate">
-                  {user?.email || user?.user_metadata?.username || 'Guest'}
-                </p>
+                <h2 className="text-white font-semibold">Dekolzee Bot</h2>
+                <p className="text-gray-300 text-xs truncate">AI Assistant</p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={signOut}
-              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 h-7 w-7 p-0"
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <UserProfile />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={signOut}
+                className="text-gray-400 hover:text-white hover:bg-white/10 h-8 w-8 p-0"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
           
           {/* Auto-speak toggle */}
-          <div className="flex items-center justify-between mb-2">
-            <Label htmlFor="auto-speak" className="text-xs text-gray-600 dark:text-gray-400">
+          <div className="flex items-center justify-between mb-3">
+            <Label htmlFor="auto-speak" className="text-sm text-gray-300">
               Auto-speak responses
             </Label>
             <div className="flex items-center gap-2">
@@ -123,7 +149,7 @@ export default function DekolzeeChatWindow() {
                   variant="ghost"
                   size="sm"
                   onClick={stopSpeaking}
-                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                  className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/20"
                 >
                   <VolumeX className="w-3 h-3" />
                 </Button>
@@ -138,31 +164,31 @@ export default function DekolzeeChatWindow() {
           
           <Button
             onClick={() => createSession()}
-            className="w-full bg-gray-900 hover:bg-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 text-white text-sm h-8"
+            className="w-full gradient-primary hover:opacity-90 text-white shadow-lg"
           >
-            <Plus className="w-3 h-3 mr-1" />
+            <Plus className="w-4 h-4 mr-2" />
             New Chat
           </Button>
         </div>
 
         {/* Sessions List */}
-        <div className="flex-1 overflow-y-auto p-2">
-          <div className="space-y-1">
+        <div className="flex-1 overflow-y-auto p-3">
+          <div className="space-y-2">
             {sessions.map((session) => (
               <motion.div
                 key={session.id}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className={`group flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors text-sm ${
+                className={`group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${
                   activeSessionId === session.id
-                    ? 'bg-gray-200 dark:bg-gray-700'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-white/20 shadow-lg'
+                    : 'hover:bg-white/10'
                 }`}
                 onClick={() => setActiveSession(session.id)}
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-gray-900 dark:text-white font-medium truncate">{session.title}</p>
-                  <p className="text-gray-500 text-xs">
+                  <p className="text-white font-medium truncate">{session.title}</p>
+                  <p className="text-gray-400 text-xs">
                     {session.messages.length} messages
                   </p>
                 </div>
@@ -173,7 +199,7 @@ export default function DekolzeeChatWindow() {
                     e.stopPropagation();
                     deleteSession(session.id);
                   }}
-                  className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 h-6 w-6 p-0"
+                  className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-400 hover:bg-red-500/20 h-6 w-6 p-0"
                 >
                   <Trash2 className="w-3 h-3" />
                 </Button>
@@ -188,76 +214,96 @@ export default function DekolzeeChatWindow() {
         {activeSession ? (
           <>
             {/* Chat Header */}
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-              <h3 className="text-gray-900 dark:text-white font-medium">{activeSession.title}</h3>
-              <p className="text-gray-500 text-sm">
-                Powered by Gemini AI • {activeSession.messages.length} messages
-              </p>
+            <div className="p-4 border-b border-white/10 bg-black/20 backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-white font-semibold text-lg">{activeSession.title}</h3>
+                  <p className="text-gray-400 text-sm">
+                    Powered by Gemini AI • {activeSession.messages.length} messages
+                  </p>
+                </div>
+                <Button
+                  onClick={exportSession}
+                  variant="outline"
+                  size="sm"
+                  className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+                >
+                  Export Chat
+                </Button>
+              </div>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
               <AnimatePresence>
                 {activeSession.messages.map((msg) => (
                   <motion.div
                     key={msg.id}
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className={`flex gap-3 ${
+                    className={`flex gap-4 ${
                       msg.role === 'user' ? 'justify-end' : 'justify-start'
                     }`}
                   >
                     {msg.role === 'assistant' && (
-                      <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-teal-500 rounded-full flex items-center justify-center flex-shrink-0">
-                        <Bot className="w-4 h-4 text-white" />
+                      <div className="w-10 h-10 gradient-primary rounded-full flex items-center justify-center flex-shrink-0 shadow-lg">
+                        <Bot className="w-5 h-5 text-white" />
                       </div>
                     )}
                     
-                    <div
-                      className={`max-w-[70%] ${
-                        msg.role === 'user'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                      } rounded-2xl px-4 py-2 shadow-sm`}
-                    >
-                      <div className="whitespace-pre-wrap leading-relaxed text-sm">
-                        {msg.content}
-                      </div>
-
-                      {msg.attachments && msg.attachments.length > 0 && (
-                        <div className="mt-2 space-y-2">
-                          {msg.attachments.map((file) => (
-                            <div key={file.id}>
-                              {file.type.startsWith('image/') ? (
-                                <img
-                                  src={file.url}
-                                  alt={file.name}
-                                  className="max-w-full h-auto rounded-lg"
-                                />
-                              ) : (
-                                <div className="flex items-center gap-2 p-2 bg-black/10 dark:bg-white/10 rounded text-xs">
-                                  <Paperclip className="w-3 h-3" />
-                                  <span className="truncate">{file.name}</span>
-                                </div>
-                              )}
-                            </div>
-                          ))}
+                    <div className="group relative">
+                      <div
+                        className={`max-w-2xl ${
+                          msg.role === 'user'
+                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                            : 'glass text-white border border-white/10 shadow-lg'
+                        } rounded-2xl px-6 py-4 backdrop-blur-sm`}
+                      >
+                        <div className="leading-relaxed">
+                          {msg.role === 'assistant' ? (
+                            <MarkdownRenderer content={msg.content} />
+                          ) : (
+                            <div className="whitespace-pre-wrap">{msg.content}</div>
+                          )}
                         </div>
-                      )}
-                      
-                      <div className="flex justify-between items-center mt-1">
-                        <span className="text-xs opacity-70">
-                          {msg.role === 'user' ? 'You' : 'Dekolzee Chat'}
-                        </span>
-                        <span className="text-xs opacity-50">
-                          {formatTime(msg.timestamp)}
-                        </span>
+
+                        {msg.attachments && msg.attachments.length > 0 && (
+                          <div className="mt-4 space-y-3">
+                            {msg.attachments.map((file) => (
+                              <div key={file.id}>
+                                {file.type.startsWith('image/') ? (
+                                  <img
+                                    src={file.url}
+                                    alt={file.name}
+                                    className="max-w-full h-auto rounded-xl shadow-lg"
+                                  />
+                                ) : (
+                                  <div className="flex items-center gap-3 p-3 bg-black/20 rounded-lg border border-white/10">
+                                    <Paperclip className="w-4 h-4 text-gray-400" />
+                                    <span className="text-sm truncate">{file.name}</span>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        <div className="flex justify-between items-center mt-3 pt-2 border-t border-white/10">
+                          <span className="text-xs text-gray-400">
+                            {msg.role === 'user' ? 'You' : 'Dekolzee Bot'}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {formatTime(msg.timestamp)}
+                          </span>
+                        </div>
                       </div>
+                      
+                      <MessageReactions messageId={msg.id} />
                     </div>
 
                     {msg.role === 'user' && (
-                      <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <User className="w-4 h-4 text-white" />
+                      <div className="w-10 h-10 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg">
+                        <User className="w-5 h-5 text-white" />
                       </div>
                     )}
                   </motion.div>
@@ -266,18 +312,18 @@ export default function DekolzeeChatWindow() {
 
               {isLoading && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex gap-3"
+                  className="flex gap-4"
                 >
-                  <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-teal-500 rounded-full flex items-center justify-center">
-                    <Bot className="w-4 h-4 text-white" />
+                  <div className="w-10 h-10 gradient-primary rounded-full flex items-center justify-center shadow-lg">
+                    <Bot className="w-5 h-5 text-white" />
                   </div>
-                  <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl px-4 py-2">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="glass rounded-2xl px-6 py-4 border border-white/10 shadow-lg">
+                    <div className="flex space-x-2">
+                      <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-2 h-2 bg-white/60 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                     </div>
                   </div>
                 </motion.div>
@@ -287,29 +333,29 @@ export default function DekolzeeChatWindow() {
             </div>
 
             {/* Input Area */}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <div className="p-6 border-t border-white/10 bg-black/20 backdrop-blur-sm">
               {files.length > 0 && (
-                <div className="mb-3 flex flex-wrap gap-2">
+                <div className="mb-4 flex flex-wrap gap-3">
                   {files.map((file) => (
                     <div
                       key={file.id}
-                      className="relative flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-2 text-sm"
+                      className="relative flex items-center gap-3 glass rounded-xl px-4 py-3 border border-white/10"
                     >
                       {file.type.startsWith('image/') ? (
                         <img
                           src={file.url}
                           alt={file.name}
-                          className="w-8 h-8 object-cover rounded"
+                          className="w-10 h-10 object-cover rounded-lg"
                         />
                       ) : (
-                        <Paperclip className="w-4 h-4" />
+                        <Paperclip className="w-5 h-5 text-gray-400" />
                       )}
-                      <span className="text-gray-700 dark:text-gray-300 truncate max-w-32">{file.name}</span>
+                      <span className="text-white truncate max-w-32">{file.name}</span>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => removeFile(file.id)}
-                        className="text-gray-400 hover:text-red-500 h-4 w-4 p-0 absolute -top-1 -right-1 bg-white dark:bg-gray-800 rounded-full"
+                        className="text-gray-400 hover:text-red-400 hover:bg-red-500/20 h-6 w-6 p-0 absolute -top-2 -right-2 bg-gray-800 rounded-full shadow-lg"
                       >
                         <X className="w-3 h-3" />
                       </Button>
@@ -318,7 +364,7 @@ export default function DekolzeeChatWindow() {
                 </div>
               )}
 
-              <div className="flex gap-2 items-end">
+              <div className="flex gap-3 items-end">
                 <div className="flex-1 relative">
                   <Textarea
                     ref={textareaRef}
@@ -326,13 +372,13 @@ export default function DekolzeeChatWindow() {
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
                     placeholder="Ask me anything..."
-                    className="min-h-[44px] max-h-[120px] resize-none bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 rounded-xl pr-12"
+                    className="min-h-[52px] max-h-[120px] resize-none glass border-white/20 text-white placeholder:text-gray-400 rounded-2xl pr-4 shadow-lg backdrop-blur-sm"
                     disabled={isLoading}
                     rows={1}
                   />
                 </div>
 
-                <div className="flex gap-1">
+                <div className="flex gap-2">
                   <FileUploader onFilesUploaded={setFiles} />
                   <VoiceInterface 
                     onTranscription={handleVoiceTranscription}
@@ -342,9 +388,9 @@ export default function DekolzeeChatWindow() {
                   <Button
                     onClick={handleSendMessage}
                     disabled={isLoading || (!message.trim() && files.length === 0)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-11 w-11 p-0"
+                    className="gradient-secondary hover:opacity-90 text-white rounded-2xl h-12 w-12 p-0 shadow-lg"
                   >
-                    <Send className="w-4 h-4" />
+                    <Send className="w-5 h-5" />
                   </Button>
                 </div>
               </div>
@@ -354,22 +400,22 @@ export default function DekolzeeChatWindow() {
           /* Welcome Screen */
           <div className="flex-1 flex items-center justify-center p-8">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               className="text-center max-w-md"
             >
-              <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <span className="text-2xl font-bold text-white">DC</span>
+              <div className="w-20 h-20 gradient-primary rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl animate-float">
+                <span className="text-3xl font-bold text-white">DB</span>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Welcome to Dekolzee Chat</h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Your AI assistant powered by Google Gemini. Ask questions, upload images, use voice commands, or just have a conversation!
+              <h2 className="text-3xl font-bold text-white mb-4 text-gradient">Welcome to Dekolzee Bot</h2>
+              <p className="text-gray-300 mb-8 leading-relaxed">
+                Your advanced AI assistant powered by Google Gemini. Experience seamless conversations with voice commands, file uploads, and intelligent responses.
               </p>
               <Button
                 onClick={() => createSession('Welcome Chat')}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="gradient-primary hover:opacity-90 text-white shadow-lg px-8 py-3 text-lg font-semibold rounded-2xl"
               >
-                <Plus className="w-4 h-4 mr-2" />
+                <Plus className="w-5 h-5 mr-2" />
                 Start Chatting
               </Button>
             </motion.div>
