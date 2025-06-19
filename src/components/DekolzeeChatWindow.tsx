@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Plus, Trash2, LogOut, User, Bot, Paperclip, X, Volume2, VolumeX } from 'lucide-react';
@@ -20,6 +19,7 @@ export default function DekolzeeChatWindow() {
   const [message, setMessage] = useState('');
   const [files, setFiles] = useState<Array<{ id: string; name: string; type: string; url: string; size: number }>>([]);
   const [autoSpeak, setAutoSpeak] = useState(false);
+  const [messageReactions, setMessageReactions] = useState<Record<string, Record<string, number>>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { stop: stopSpeaking, isSpeaking } = useTextToSpeech();
@@ -77,6 +77,16 @@ export default function DekolzeeChatWindow() {
 
   const handleVoiceTranscription = (transcript: string) => {
     setMessage(transcript);
+  };
+
+  const handleReact = (messageId: string, emoji: string) => {
+    setMessageReactions(prev => ({
+      ...prev,
+      [messageId]: {
+        ...prev[messageId],
+        [emoji]: (prev[messageId]?.[emoji] || 0) + 1
+      }
+    }));
   };
 
   const formatTime = (date: Date) => {
@@ -298,7 +308,11 @@ export default function DekolzeeChatWindow() {
                         </div>
                       </div>
                       
-                      <MessageReactions messageId={msg.id} />
+                      <MessageReactions 
+                        messageId={msg.id} 
+                        reactions={messageReactions[msg.id]}
+                        onReact={handleReact}
+                      />
                     </div>
 
                     {msg.role === 'user' && (
