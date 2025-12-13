@@ -7,12 +7,56 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Simple in-memory rate limiting (resets on function cold start)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT = 10; // requests per minute
+const RATE_WINDOW = 60 * 1000; // 1 minute in ms
+
+function checkRateLimit(clientId: string): { allowed: boolean; remaining: number } {
+  const now = Date.now();
+  const record = rateLimitMap.get(clientId);
+  
+  if (!record || now > record.resetTime) {
+    rateLimitMap.set(clientId, { count: 1, resetTime: now + RATE_WINDOW });
+    return { allowed: true, remaining: RATE_LIMIT - 1 };
+  }
+  
+  if (record.count >= RATE_LIMIT) {
+    return { allowed: false, remaining: 0 };
+  }
+  
+  record.count++;
+  return { allowed: true, remaining: RATE_LIMIT - record.count };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Use IP or a simple identifier for rate limiting
+    const clientId = req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || 'anonymous';
+    const { allowed, remaining } = checkRateLimit(clientId);
+    
+    if (!allowed) {
+      console.log(`Rate limit exceeded for client: ${clientId}`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Too many requests. Please wait a moment before sending another message.' 
+        }),
+        { 
+          status: 429,
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'X-RateLimit-Remaining': '0',
+            'Retry-After': '60'
+          }
+        }
+      );
+    }
+
     const { message, images } = await req.json();
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
 
@@ -29,11 +73,13 @@ serve(async (req) => {
         parts.push({
           inline_data: {
             mime_type: image.mimeType,
-            data: image.data // base64 encoded data
+            data: image.data
           }
         });
       }
     }
+
+    console.log(`Processing request for client: ${clientId}, remaining: ${remaining}`);
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -60,11 +106,10 @@ serve(async (req) => {
       const errorData = await response.text();
       console.error('Gemini API error:', response.status, errorData);
       
-      // Handle rate limit errors gracefully
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ 
-            error: 'Rate limit exceeded. Your Gemini API quota has been exhausted. Please wait or upgrade your plan at https://ai.google.dev/gemini-api/docs/rate-limits' 
+            error: 'API quota exceeded. Please wait a moment before trying again.' 
           }),
           { 
             status: 429,
@@ -81,7 +126,13 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ response: generatedText }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'X-RateLimit-Remaining': remaining.toString()
+        } 
+      }
     );
   } catch (error) {
     console.error('Error in chat-with-gemini function:', error);
