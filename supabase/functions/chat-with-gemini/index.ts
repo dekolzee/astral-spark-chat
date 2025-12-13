@@ -58,6 +58,21 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorData = await response.text();
+      console.error('Gemini API error:', response.status, errorData);
+      
+      // Handle rate limit errors gracefully
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Rate limit exceeded. Your Gemini API quota has been exhausted. Please wait or upgrade your plan at https://ai.google.dev/gemini-api/docs/rate-limits' 
+          }),
+          { 
+            status: 429,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+      
       throw new Error(`Gemini API error: ${response.status} - ${errorData}`);
     }
 
