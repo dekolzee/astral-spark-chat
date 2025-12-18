@@ -82,10 +82,43 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setActiveSessionId(sessionId);
   };
 
-  const sendMessage = async (content: string, attachments?: Array<{ id: string; name: string; type: string; url: string; size: number }>) => {
+  const sendMessage = async (
+    content: string,
+    attachments?: Array<{ id: string; name: string; type: string; url: string; size: number }>
+  ) => {
     if (!user || !activeSessionId || !content.trim()) return;
 
     setIsLoading(true);
+
+    const getErrorDescription = async (err: unknown): Promise<string> => {
+      const anyErr = err as any;
+
+      // Supabase Functions errors often include the original Response here
+      const resp: Response | undefined = anyErr?.context?.response;
+      if (resp) {
+        try {
+          const text = await resp.clone().text();
+          try {
+            const json = JSON.parse(text);
+            if (json?.error && typeof json.error === 'string') return json.error;
+          } catch {
+            // ignore JSON parse errors
+          }
+          if (text?.trim()) return text.trim();
+        } catch {
+          // ignore body read errors
+        }
+      }
+
+      const msg = anyErr?.message ? String(anyErr.message) : '';
+      if (!msg) return 'Failed to get response from AI. Please try again.';
+
+      if (msg.includes('non-2xx')) {
+        return 'The AI request failed (non-2xx). This is usually caused by an API quota/billing issue or rate limit.';
+      }
+
+      return msg;
+    };
 
     try {
       // Add user message
@@ -98,14 +131,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       };
 
       // Update local state
-      setSessions(prev => prev.map(session =>
-        session.id === activeSessionId
-          ? { ...session, messages: [...session.messages, userMessage] }
-          : session
-      ));
+      setSessions(prev =>
+        prev.map(session =>
+          session.id === activeSessionId
+            ? { ...session, messages: [...session.messages, userMessage] }
+            : session
+        )
+      );
 
       // Prepare images for Gemini API
-      const images = [];
+      const images: Array<{ data: string; mimeType: string }> = [];
       if (attachments) {
         for (const attachment of attachments) {
           if (attachment.type.startsWith('image/')) {
@@ -120,10 +155,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 };
                 reader.readAsDataURL(blob);
               });
-              
+
               images.push({
                 data: base64,
-                mimeType: attachment.type
+                mimeType: attachment.type,
               });
             } catch (error) {
               console.error('Error processing image:', error);
@@ -136,17 +171,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.functions.invoke('chat-with-gemini', {
         body: {
           message: content,
-          images: images.length > 0 ? images : undefined
-        }
+          images: images.length > 0 ? images : undefined,
+        },
       });
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
@@ -157,20 +187,25 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       };
 
       // Update local state with AI response
-      setSessions(prev => prev.map(session =>
-        session.id === activeSessionId
-          ? { ...session, messages: [...session.messages, assistantMessage] }
-          : session
-      ));
+      setSessions(prev =>
+        prev.map(session =>
+          session.id === activeSessionId
+            ? { ...session, messages: [...session.messages, assistantMessage] }
+            : session
+        )
+      );
 
       setIsLoading(false);
     } catch (error) {
       console.error('Error sending message:', error);
+      const description = await getErrorDescription(error);
+
       toast({
-        title: "Error",
-        description: "Failed to get response from AI. Please try again.",
-        variant: "destructive",
+        title: 'AI Error',
+        description,
+        variant: 'destructive',
       });
+
       setIsLoading(false);
     }
   };

@@ -105,19 +105,42 @@ serve(async (req) => {
     if (!response.ok) {
       const errorData = await response.text();
       console.error('Gemini API error:', response.status, errorData);
-      
+
       if (response.status === 429) {
+        let retryAfterSeconds: number | undefined;
+        try {
+          const parsed = JSON.parse(errorData);
+          const retryInfo = parsed?.error?.details?.find((d: any) =>
+            typeof d?.['@type'] === 'string' && d['@type'].includes('RetryInfo')
+          );
+          const retryDelay = retryInfo?.retryDelay as string | undefined; // e.g. "24s"
+          if (retryDelay && typeof retryDelay === 'string') {
+            const m = retryDelay.match(/(\d+)/);
+            if (m?.[1]) retryAfterSeconds = Number(m[1]);
+          }
+        } catch {
+          // ignore parse errors
+        }
+
+        const baseMsg =
+          'Gemini API quota exceeded. Please check your Google AI Studio billing/quota and try again.';
+        const msg = retryAfterSeconds
+          ? `${baseMsg} Retry in ~${retryAfterSeconds}s.`
+          : baseMsg;
+
         return new Response(
-          JSON.stringify({ 
-            error: 'API quota exceeded. Please wait a moment before trying again.' 
-          }),
-          { 
+          JSON.stringify({ error: msg, retryAfterSeconds }),
+          {
             status: 429,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json',
+              ...(retryAfterSeconds ? { 'Retry-After': String(retryAfterSeconds) } : {}),
+            },
           }
         );
       }
-      
+
       throw new Error(`Gemini API error: ${response.status} - ${errorData}`);
     }
 
